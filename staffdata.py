@@ -9,6 +9,7 @@ Original file is located at
 
 # Streamlit dashboard para GoFundMe - Nicolás Ton
 # GoFundMe Campaign Performance Dashboard - Nicolás Ton
+# GoFundMe Campaign Performance Dashboard - Nicolás Ton
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -20,15 +21,18 @@ st.set_page_config(page_title="GoFundMe Campaign Dashboard", layout="wide")
 # Custom CSS for GoFundMe branding
 st.markdown("""
     <style>
-    .main {
-        background-color: #f7f8fa;
-        padding: 2rem;
+    html, body, .main {
+        background-color: #f1f3f5;
     }
     h1, h2, h3 {
         color: #10754c;
     }
-    .st-bw {
-        background-color: #ffffff;
+    .stSelectbox div[role="listbox"] {
+        background-color: white !important;
+        color: black !important;
+    }
+    .stDateInput {
+        width: 100%;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -50,19 +54,28 @@ campaigns = pd.DataFrame({
 campaigns['raised_usd'] = campaigns['goal_usd'] * np.random.uniform(0.2, 1.3, n_campaigns)
 campaigns['status'] = np.where(campaigns['raised_usd'] >= campaigns['goal_usd'], 'Goal Reached', 'In Progress')
 
+# Date range for slider
+min_date = campaigns['created_at'].min()
+max_date = campaigns['created_at'].max()
+
 # Sidebar filters
 st.sidebar.title("🔎 Filters")
 selected_country = st.sidebar.multiselect("Country", options=countries, default=countries)
 selected_category = st.sidebar.multiselect("Category", options=categories, default=categories)
-date_range = st.sidebar.date_input("Creation date range", 
-                                   [campaigns['created_at'].min(), campaigns['created_at'].max()])
+selected_date_range = st.sidebar.slider(
+    "Creation Date Range",
+    min_value=min_date,
+    max_value=max_date,
+    value=(min_date, max_date),
+    format="YYYY-MM-DD"
+)
 
 # Filter data
 df = campaigns[
     (campaigns['country'].isin(selected_country)) &
     (campaigns['category'].isin(selected_category)) &
-    (campaigns['created_at'] >= pd.to_datetime(date_range[0])) &
-    (campaigns['created_at'] <= pd.to_datetime(date_range[1]))
+    (campaigns['created_at'] >= pd.to_datetime(selected_date_range[0])) &
+    (campaigns['created_at'] <= pd.to_datetime(selected_date_range[1]))
 ]
 
 # KPIs
@@ -79,7 +92,7 @@ col2.metric("Total Goal", f"${total_goal:,.0f}")
 col3.metric("Success Rate", f"{success_rate:.1f}%")
 col4.metric("Avg Raised per Campaign", f"${avg_donation:,.0f}")
 
-# Section: Category Breakdown
+# Category breakdown
 st.markdown("### 📁 Raised Amount by Category")
 cat_chart = df.groupby('category')['raised_usd'].sum().reset_index()
 st.plotly_chart(px.bar(cat_chart, x='category', y='raised_usd',
@@ -87,7 +100,7 @@ st.plotly_chart(px.bar(cat_chart, x='category', y='raised_usd',
                        color_discrete_sequence=px.colors.sequential.Emrld,
                        title="Total Raised by Category"), use_container_width=True)
 
-# Section: Country map
+# Country heatmap
 st.markdown("### 🌍 Raised Amount by Country")
 geo = df.groupby('country')['raised_usd'].sum().reset_index()
 geo['iso'] = geo['country'].map({
@@ -102,13 +115,14 @@ st.plotly_chart(px.choropleth(geo, locations='iso', color='raised_usd',
                               color_continuous_scale='greens',
                               title='Total Raised by Country'), use_container_width=True)
 
-# Section: Top Campaigns
+# Top campaigns
 st.markdown("### ⭐ Top Performing Campaigns")
 top_campaigns = df.sort_values('raised_usd', ascending=False).head(10)
 st.dataframe(top_campaigns[['name', 'category', 'country', 'goal_usd', 'raised_usd', 'status']])
 
-# Section: Near Goal Campaigns
+# Near-goal alerts
 st.markdown("### 🚨 Campaigns Close to Goal (90%+ and not yet reached)")
 near_goal = df[((df['raised_usd'] / df['goal_usd']) >= 0.9) & (df['status'] != 'Goal Reached')]
 st.dataframe(near_goal[['name', 'country', 'category', 'raised_usd', 'goal_usd']])
+
 
