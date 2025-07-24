@@ -8,81 +8,107 @@ Original file is located at
 """
 
 # Streamlit dashboard para GoFundMe - Nicolás Ton
+# GoFundMe Campaign Performance Dashboard - Nicolás Ton
 import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
 
-# Simulación de datos
+# Streamlit config
+st.set_page_config(page_title="GoFundMe Campaign Dashboard", layout="wide")
+
+# Custom CSS for GoFundMe branding
+st.markdown("""
+    <style>
+    .main {
+        background-color: #f7f8fa;
+        padding: 2rem;
+    }
+    h1, h2, h3 {
+        color: #10754c;
+    }
+    .st-bw {
+        background-color: #ffffff;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Simulated dataset
 np.random.seed(42)
-categories = ['Salud', 'Educación', 'Desastres Naturales', 'Animales', 'Comunidad']
-countries = ['Argentina', 'USA', 'Brasil', 'México', 'España']
+categories = ['Health', 'Education', 'Natural Disasters', 'Animals', 'Community']
+countries = ['Argentina', 'USA', 'Brazil', 'Mexico', 'Spain']
 
 n_campaigns = 300
 campaigns = pd.DataFrame({
     'id': range(1, n_campaigns + 1),
-    'nombre': [f'Campaña {i}' for i in range(1, n_campaigns + 1)],
-    'categoría': np.random.choice(categories, n_campaigns),
-    'país': np.random.choice(countries, n_campaigns),
-    'meta_usd': np.random.randint(5000, 50000, n_campaigns),
-    'recaudado_usd': lambda df: df['meta_usd'] * np.random.uniform(0.2, 1.3, n_campaigns),
-    'fecha_creación': pd.to_datetime('2024-01-01') + pd.to_timedelta(np.random.randint(0, 180, n_campaigns), unit='D')
+    'name': [f'Campaign {i}' for i in range(1, n_campaigns + 1)],
+    'category': np.random.choice(categories, n_campaigns),
+    'country': np.random.choice(countries, n_campaigns),
+    'goal_usd': np.random.randint(5000, 50000, n_campaigns),
+    'created_at': pd.to_datetime('2024-01-01') + pd.to_timedelta(np.random.randint(0, 180, n_campaigns), unit='D')
 })
-campaigns['recaudado_usd'] = campaigns['meta_usd'] * np.random.uniform(0.2, 1.3, n_campaigns)
-campaigns['estado'] = np.where(campaigns['recaudado_usd'] >= campaigns['meta_usd'], 'Meta alcanzada', 'En curso')
+campaigns['raised_usd'] = campaigns['goal_usd'] * np.random.uniform(0.2, 1.3, n_campaigns)
+campaigns['status'] = np.where(campaigns['raised_usd'] >= campaigns['goal_usd'], 'Goal Reached', 'In Progress')
 
-# Sidebar
-st.sidebar.title("Filtros")
-pais = st.sidebar.selectbox("País", ['Todos'] + countries)
-categoria = st.sidebar.selectbox("Categoría", ['Todas'] + categories)
+# Sidebar filters
+st.sidebar.title("🔎 Filters")
+selected_country = st.sidebar.multiselect("Country", options=countries, default=countries)
+selected_category = st.sidebar.multiselect("Category", options=categories, default=categories)
+date_range = st.sidebar.date_input("Creation date range", 
+                                   [campaigns['created_at'].min(), campaigns['created_at'].max()])
 
-# Filtros
-df = campaigns.copy()
-if pais != 'Todos':
-    df = df[df['país'] == pais]
-if categoria != 'Todas':
-    df = df[df['categoría'] == categoria]
+# Filter data
+df = campaigns[
+    (campaigns['country'].isin(selected_country)) &
+    (campaigns['category'].isin(selected_category)) &
+    (campaigns['created_at'] >= pd.to_datetime(date_range[0])) &
+    (campaigns['created_at'] <= pd.to_datetime(date_range[1]))
+]
 
 # KPIs
-total_recaudado = df['recaudado_usd'].sum()
-total_meta = df['meta_usd'].sum()
-porcentaje_exito = (df['estado'] == 'Meta alcanzada').mean() * 100
-ticket_promedio = df['recaudado_usd'].mean()
+total_raised = df['raised_usd'].sum()
+total_goal = df['goal_usd'].sum()
+success_rate = (df['status'] == 'Goal Reached').mean() * 100
+avg_donation = df['raised_usd'].mean()
 
-st.title("📊 Dashboard de Campañas - GoFundMe (simulado)")
+st.title("📊 GoFundMe Campaign Performance Dashboard")
 
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("Recaudación total", f"${total_recaudado:,.0f}")
-col2.metric("Meta total", f"${total_meta:,.0f}")
-col3.metric("Éxito (%)", f"{porcentaje_exito:.1f}%")
-col4.metric("Recaudación promedio", f"${ticket_promedio:,.0f}")
+col1.metric("Total Raised", f"${total_raised:,.0f}")
+col2.metric("Total Goal", f"${total_goal:,.0f}")
+col3.metric("Success Rate", f"{success_rate:.1f}%")
+col4.metric("Avg Raised per Campaign", f"${avg_donation:,.0f}")
 
-# Gráfico: Recaudación por categoría
-st.subheader("📁 Recaudación por categoría")
-cat_chart = df.groupby('categoría')['recaudado_usd'].sum().reset_index()
-st.plotly_chart(px.bar(cat_chart, x='categoría', y='recaudado_usd', title='Recaudación total por categoría'))
+# Section: Category Breakdown
+st.markdown("### 📁 Raised Amount by Category")
+cat_chart = df.groupby('category')['raised_usd'].sum().reset_index()
+st.plotly_chart(px.bar(cat_chart, x='category', y='raised_usd',
+                       color='category',
+                       color_discrete_sequence=px.colors.sequential.Emrld,
+                       title="Total Raised by Category"), use_container_width=True)
 
-# Gráfico: Mapa por país
-st.subheader("🌍 Distribución geográfica")
-geo = df.groupby('país')['recaudado_usd'].sum().reset_index()
-geo['iso'] = geo['país'].map({
+# Section: Country map
+st.markdown("### 🌍 Raised Amount by Country")
+geo = df.groupby('country')['raised_usd'].sum().reset_index()
+geo['iso'] = geo['country'].map({
     'Argentina': 'ARG',
     'USA': 'USA',
-    'Brasil': 'BRA',
-    'México': 'MEX',
-    'España': 'ESP'
+    'Brazil': 'BRA',
+    'Mexico': 'MEX',
+    'Spain': 'ESP'
 })
-st.plotly_chart(px.choropleth(geo, locations='iso', color='recaudado_usd',
-                              hover_name='país', title='Recaudación total por país',
-                              color_continuous_scale='blues'))
+st.plotly_chart(px.choropleth(geo, locations='iso', color='raised_usd',
+                              hover_name='country',
+                              color_continuous_scale='greens',
+                              title='Total Raised by Country'), use_container_width=True)
 
-# Tabla de campañas destacadas
-st.subheader("⭐ Campañas con mayor recaudación")
-top_campañas = df.sort_values('recaudado_usd', ascending=False).head(10)
-st.dataframe(top_campañas[['nombre', 'categoría', 'país', 'meta_usd', 'recaudado_usd', 'estado']])
+# Section: Top Campaigns
+st.markdown("### ⭐ Top Performing Campaigns")
+top_campaigns = df.sort_values('raised_usd', ascending=False).head(10)
+st.dataframe(top_campaigns[['name', 'category', 'country', 'goal_usd', 'raised_usd', 'status']])
 
-# Alertas
-st.subheader("🚨 Campañas cerca de la meta")
-casi_meta = df[((df['recaudado_usd'] / df['meta_usd']) >= 0.9) & (df['estado'] != 'Meta alcanzada')]
+# Section: Near Goal Campaigns
+st.markdown("### 🚨 Campaigns Close to Goal (90%+ and not yet reached)")
+near_goal = df[((df['raised_usd'] / df['goal_usd']) >= 0.9) & (df['status'] != 'Goal Reached')]
+st.dataframe(near_goal[['name', 'country', 'category', 'raised_usd', 'goal_usd']])
 
-st.dataframe(casi_meta[['nombre', 'país', 'categoría', 'recaudado_usd', 'meta_usd']])
