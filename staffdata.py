@@ -7,16 +7,16 @@ Original file is located at
     https://colab.research.google.com/drive/1Dhu4UZA14JrOJTQ3YVmm-WBNYiYrASeB
 """
 
-# GoFundMe Campaign Performance Dashboard - Nicolás Ton
+# GoFundMe Campaign Dashboard - Nicolás Ton
 import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
 
-# Streamlit config
-st.set_page_config(page_title="GoFundMe Campaign Dashboard", layout="wide")
+# Streamlit page setup
+st.set_page_config(page_title="GoFundMe Dashboard", layout="wide")
 
-# Custom CSS for GoFundMe branding and better visuals
+# Custom CSS styling
 st.markdown("""
     <style>
     html, body, .main {
@@ -35,12 +35,12 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Simulated dataset
+# Simulated data
 np.random.seed(42)
 categories = ['Health', 'Education', 'Natural Disasters', 'Animals', 'Community']
 countries = ['Argentina', 'USA', 'Brazil', 'Mexico', 'Spain']
-
 n_campaigns = 300
+
 campaigns = pd.DataFrame({
     'id': range(1, n_campaigns + 1),
     'name': [f'Campaign {i}' for i in range(1, n_campaigns + 1)],
@@ -52,11 +52,10 @@ campaigns = pd.DataFrame({
 campaigns['raised_usd'] = campaigns['goal_usd'] * np.random.uniform(0.2, 1.3, n_campaigns)
 campaigns['status'] = np.where(campaigns['raised_usd'] >= campaigns['goal_usd'], 'Goal Reached', 'In Progress')
 
-# Convert min/max dates for slider compatibility
+# Sidebar filters
 min_date = campaigns['created_at'].min().date()
 max_date = campaigns['created_at'].max().date()
 
-# Sidebar filters
 st.sidebar.title("🔎 Filters")
 selected_country = st.sidebar.multiselect("Country", options=countries, default=countries)
 selected_category = st.sidebar.multiselect("Category", options=categories, default=categories)
@@ -68,7 +67,7 @@ selected_date_range = st.sidebar.slider(
     format="YYYY-MM-DD"
 )
 
-# Filter dataset
+# Apply filters
 df = campaigns[
     (campaigns['country'].isin(selected_country)) &
     (campaigns['category'].isin(selected_category)) &
@@ -76,21 +75,29 @@ df = campaigns[
     (campaigns['created_at'] <= pd.to_datetime(selected_date_range[1]))
 ]
 
+# Dashboard title & intro
+st.title("📊 GoFundMe Campaign Performance Dashboard")
+st.markdown("""
+Welcome to the GoFundMe Campaign Insights Dashboard.  
+This tool helps the BI and strategy teams explore campaign performance over time, by country and category, and quickly identify key trends, high-performing initiatives, and areas needing attention.  
+Use the filters on the left to interact with the data and download insights.
+""")
+
+# Export button
+st.download_button("⬇️ Download Filtered Data as CSV", df.to_csv(index=False), "filtered_campaigns.csv", "text/csv")
+
 # KPIs
 total_raised = df['raised_usd'].sum()
 total_goal = df['goal_usd'].sum()
 success_rate = (df['status'] == 'Goal Reached').mean() * 100
 avg_donation = df['raised_usd'].mean()
 
-# Header
-st.title("📊 GoFundMe Campaign Performance Dashboard")
-
-# KPI cards
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Total Raised", f"${total_raised:,.0f}")
 col2.metric("Total Goal", f"${total_goal:,.0f}")
 col3.metric("Success Rate", f"{success_rate:.1f}%")
 col4.metric("Avg Raised per Campaign", f"${avg_donation:,.0f}")
+st.caption(f"ℹ️ {success_rate:.1f}% of filtered campaigns reached their fundraising goal.")
 
 # Raised by category
 st.markdown("### 📁 Raised Amount by Category")
@@ -100,7 +107,7 @@ st.plotly_chart(px.bar(cat_chart, x='category', y='raised_usd',
                        color_discrete_sequence=px.colors.sequential.Emrld,
                        title="Total Raised by Category"), use_container_width=True)
 
-# Raised by country (map)
+# Country map
 st.markdown("### 🌍 Raised Amount by Country")
 geo = df.groupby('country')['raised_usd'].sum().reset_index()
 geo['iso'] = geo['country'].map({
@@ -115,14 +122,42 @@ st.plotly_chart(px.choropleth(geo, locations='iso', color='raised_usd',
                               color_continuous_scale='greens',
                               title='Total Raised by Country'), use_container_width=True)
 
-# Top 10 campaigns
-st.markdown("### ⭐ Top Performing Campaigns")
-top_campaigns = df.sort_values('raised_usd', ascending=False).head(10)
-st.dataframe(top_campaigns[['name', 'category', 'country', 'goal_usd', 'raised_usd', 'status']])
+# Timeline chart
+st.markdown("### 📅 Campaigns Created Over Time")
+df['month'] = df['created_at'].dt.to_period('M').dt.to_timestamp()
+timeline = df.groupby('month')['raised_usd'].sum().reset_index()
+st.plotly_chart(px.line(timeline, x='month', y='raised_usd',
+                        markers=True,
+                        title="Monthly Raised Amount"), use_container_width=True)
 
-# Near goal campaigns
+# Success vs In Progress
+st.markdown("### 🧪 Success vs In Progress Comparison")
+success_cmp = df.groupby('status')['raised_usd'].agg(['count', 'mean', 'sum']).reset_index()
+st.dataframe(success_cmp)
+
+# Success rate by category
+st.markdown("### 🏆 Success Rate by Category")
+success_by_cat = df.groupby('category').apply(
+    lambda x: (x['status'] == 'Goal Reached').mean() * 100).reset_index(name='success_rate')
+st.plotly_chart(px.bar(success_by_cat, x='category', y='success_rate',
+                       color='category',
+                       color_discrete_sequence=px.colors.sequential.Emrld,
+                       title='Success Rate by Category'), use_container_width=True)
+
+# Top campaigns
+st.markdown("### ⭐ Top Performing Campaigns")
+top = df.sort_values('raised_usd', ascending=False).head(10)
+st.dataframe(top[['name', 'category', 'country', 'goal_usd', 'raised_usd', 'status']])
+
+# Near-goal alerts
 st.markdown("### 🚨 Campaigns Close to Goal (90%+ and not yet reached)")
 near_goal = df[((df['raised_usd'] / df['goal_usd']) >= 0.9) & (df['status'] != 'Goal Reached')]
 st.dataframe(near_goal[['name', 'country', 'category', 'raised_usd', 'goal_usd']])
+
+# Inactive campaigns
+st.markdown("### 💤 Potentially Inactive Campaigns (before April 2024)")
+inactive = df[df['created_at'] < pd.to_datetime("2024-04-01")]
+st.dataframe(inactive[['name', 'country', 'created_at', 'raised_usd', 'goal_usd']])
+
 
 
