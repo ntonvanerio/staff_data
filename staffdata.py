@@ -7,20 +7,21 @@ Original file is located at
     https://colab.research.google.com/drive/1Dhu4UZA14JrOJTQ3YVmm-WBNYiYrASeB
 """
 
-# GoFundMe Campaign Dashboard - Nicolás Ton
+# GoFundMe Campaign Dashboard - Nicolás Ton (Versión Final)
 import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
+from datetime import datetime
 
-# Streamlit page setup
+# Configuración de la app
 st.set_page_config(page_title="GoFundMe Dashboard", layout="wide")
 
-# Custom CSS styling
+# Estilo visual - Fondo gris oscuro y branding GoFundMe
 st.markdown("""
     <style>
     html, body, .main {
-        background-color: #f1f3f5;
+        background-color: #e0e2e6;
     }
     h1, h2, h3 {
         color: #10754c;
@@ -35,7 +36,12 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Simulated data
+# 📅 Fechas: desde enero 2025 hasta hoy (24 julio 2025)
+today = datetime(2025, 7, 24)
+start_date = datetime(2025, 1, 1)
+date_range_days = (today - start_date).days
+
+# Simulación de datos
 np.random.seed(42)
 categories = ['Health', 'Education', 'Natural Disasters', 'Animals', 'Community']
 countries = ['Argentina', 'USA', 'Brazil', 'Mexico', 'Spain']
@@ -47,12 +53,12 @@ campaigns = pd.DataFrame({
     'category': np.random.choice(categories, n_campaigns),
     'country': np.random.choice(countries, n_campaigns),
     'goal_usd': np.random.randint(5000, 50000, n_campaigns),
-    'created_at': pd.to_datetime('2024-01-01') + pd.to_timedelta(np.random.randint(0, 180, n_campaigns), unit='D')
+    'created_at': start_date + pd.to_timedelta(np.random.randint(0, date_range_days, n_campaigns), unit='D')
 })
 campaigns['raised_usd'] = campaigns['goal_usd'] * np.random.uniform(0.2, 1.3, n_campaigns)
 campaigns['status'] = np.where(campaigns['raised_usd'] >= campaigns['goal_usd'], 'Goal Reached', 'In Progress')
 
-# Sidebar filters
+# 🎛️ Filtros
 min_date = campaigns['created_at'].min().date()
 max_date = campaigns['created_at'].max().date()
 
@@ -67,7 +73,7 @@ selected_date_range = st.sidebar.slider(
     format="YYYY-MM-DD"
 )
 
-# Apply filters
+# 📋 Filtrado de datos
 df = campaigns[
     (campaigns['country'].isin(selected_country)) &
     (campaigns['category'].isin(selected_category)) &
@@ -75,18 +81,18 @@ df = campaigns[
     (campaigns['created_at'] <= pd.to_datetime(selected_date_range[1]))
 ]
 
-# Dashboard title & intro
+# 🧾 Header y descripción
 st.title("📊 GoFundMe Campaign Performance Dashboard")
 st.markdown("""
 Welcome to the GoFundMe Campaign Insights Dashboard.  
-This tool helps the BI and strategy teams explore campaign performance over time, by country and category, and quickly identify key trends, high-performing initiatives, and areas needing attention.  
-Use the filters on the left to interact with the data and download insights.
+Explore fundraising performance from January 2025 through July 2025 across different countries and categories.  
+Use filters on the left to drill into specific segments and download insights.
 """)
 
-# Export button
+# Exportación CSV
 st.download_button("⬇️ Download Filtered Data as CSV", df.to_csv(index=False), "filtered_campaigns.csv", "text/csv")
 
-# KPIs
+# 📊 KPIs
 total_raised = df['raised_usd'].sum()
 total_goal = df['goal_usd'].sum()
 success_rate = (df['status'] == 'Goal Reached').mean() * 100
@@ -99,7 +105,7 @@ col3.metric("Success Rate", f"{success_rate:.1f}%")
 col4.metric("Avg Raised per Campaign", f"${avg_donation:,.0f}")
 st.caption(f"ℹ️ {success_rate:.1f}% of filtered campaigns reached their fundraising goal.")
 
-# Raised by category
+# 📁 Raised by Category
 st.markdown("### 📁 Raised Amount by Category")
 cat_chart = df.groupby('category')['raised_usd'].sum().reset_index()
 st.plotly_chart(px.bar(cat_chart, x='category', y='raised_usd',
@@ -107,7 +113,7 @@ st.plotly_chart(px.bar(cat_chart, x='category', y='raised_usd',
                        color_discrete_sequence=px.colors.sequential.Emrld,
                        title="Total Raised by Category"), use_container_width=True)
 
-# Country map
+# 🌍 Raised by Country
 st.markdown("### 🌍 Raised Amount by Country")
 geo = df.groupby('country')['raised_usd'].sum().reset_index()
 geo['iso'] = geo['country'].map({
@@ -122,7 +128,7 @@ st.plotly_chart(px.choropleth(geo, locations='iso', color='raised_usd',
                               color_continuous_scale='greens',
                               title='Total Raised by Country'), use_container_width=True)
 
-# Timeline chart
+# 📅 Timeline
 st.markdown("### 📅 Campaigns Created Over Time")
 df['month'] = df['created_at'].dt.to_period('M').dt.to_timestamp()
 timeline = df.groupby('month')['raised_usd'].sum().reset_index()
@@ -130,12 +136,12 @@ st.plotly_chart(px.line(timeline, x='month', y='raised_usd',
                         markers=True,
                         title="Monthly Raised Amount"), use_container_width=True)
 
-# Success vs In Progress
+# 🧪 Success Comparison
 st.markdown("### 🧪 Success vs In Progress Comparison")
 success_cmp = df.groupby('status')['raised_usd'].agg(['count', 'mean', 'sum']).reset_index()
 st.dataframe(success_cmp)
 
-# Success rate by category
+# 🏆 Success Rate by Category
 st.markdown("### 🏆 Success Rate by Category")
 success_by_cat = df.groupby('category').apply(
     lambda x: (x['status'] == 'Goal Reached').mean() * 100).reset_index(name='success_rate')
@@ -144,19 +150,19 @@ st.plotly_chart(px.bar(success_by_cat, x='category', y='success_rate',
                        color_discrete_sequence=px.colors.sequential.Emrld,
                        title='Success Rate by Category'), use_container_width=True)
 
-# Top campaigns
+# ⭐ Top Performing Campaigns
 st.markdown("### ⭐ Top Performing Campaigns")
 top = df.sort_values('raised_usd', ascending=False).head(10)
 st.dataframe(top[['name', 'category', 'country', 'goal_usd', 'raised_usd', 'status']])
 
-# Near-goal alerts
+# 🚨 Near Goal
 st.markdown("### 🚨 Campaigns Close to Goal (90%+ and not yet reached)")
 near_goal = df[((df['raised_usd'] / df['goal_usd']) >= 0.9) & (df['status'] != 'Goal Reached')]
 st.dataframe(near_goal[['name', 'country', 'category', 'raised_usd', 'goal_usd']])
 
-# Inactive campaigns
-st.markdown("### 💤 Potentially Inactive Campaigns (before April 2024)")
-inactive = df[df['created_at'] < pd.to_datetime("2024-04-01")]
+# 💤 Inactive Campaigns
+st.markdown("### 💤 Potentially Inactive Campaigns (created before April 2025)")
+inactive = df[df['created_at'] < pd.to_datetime("2025-04-01")]
 st.dataframe(inactive[['name', 'country', 'created_at', 'raised_usd', 'goal_usd']])
 
 
