@@ -83,5 +83,6 @@ st.dataframe(top_campañas[['nombre', 'categoría', 'país', 'meta_usd', 'recaud
 
 # Alertas
 st.subheader("🚨 Campañas cerca de la meta")
-casi_meta = df[(df['recaudado_usd'] / df['meta_usd']) >= 0.9 & (df['estado'] != 'Meta alcanzada')]
+casi_meta = df[((df['recaudado_usd'] / df['meta_usd']) >= 0.9) & (df['estado'] != 'Meta alcanzada')]
+
 st.dataframe(casi_meta[['nombre', 'país', 'categoría', 'recaudado_usd', 'meta_usd']])
