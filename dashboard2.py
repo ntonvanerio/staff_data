@@ -5,37 +5,56 @@ import numpy as np
 import plotly.express as px
 from datetime import datetime
 
-# ----- PAGE & STYLE SETUP -----
+# --- PAGE CONFIG ---
 st.set_page_config(page_title="GoFundMe Dashboard", layout="wide")
 
+# --- UNIVERSAL STYLES FOR LEGIBILITY ---
 st.markdown("""
     <style>
-    .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
+    html, body, .main, .block-container {
         background-color: #f6f8fa !important;
-        border-radius: 10px;
-        box-shadow: 0px 4px 24px rgba(0,0,0,0.03);
+        color: #183153 !important;
     }
-    h1, h2, h3 {
-        color: #10754c;
-        font-family: 'Segoe UI', sans-serif;
-        text-align: center;
+    /* Ensure text is always legible */
+    body, div, p, span, h1, h2, h3, h4, h5, h6, label, th, td, .stText, .stMarkdown, .stMetric, .stButton, .stSidebar {
+        color: #183153 !important;
+        background-color: transparent;
     }
+    /* Highlight box styling */
     .highlight-box {
-        background: #fff;
+        background: #fff !important;
+        color: #183153 !important;
         padding: 24px 32px;
         border-radius: 12px;
         margin-bottom: 24px;
         border: 1px solid #e3e3e3;
         box-shadow: 0 2px 8px rgba(34,34,34,0.04);
+        font-size: 1.1rem;
+    }
+    /* Responsive font and layout for mobile */
+    @media (max-width: 600px) {
+        h1 { font-size: 1.3rem !important; }
+        h2 { font-size: 1.05rem !important; }
+        h3 { font-size: 0.95rem !important; }
+        .highlight-box { font-size: 0.95rem !important; padding: 10px 4px !important;}
+        .block-container { padding: 0.2rem !important; }
+        .stMetric { font-size: 1rem !important; }
+        .stTabs [data-baseweb="tab-list"] button { font-size: 0.95rem !important; }
+    }
+    /* Ensure Streamlit widgets text is visible */
+    .stSelectbox div, .stMultiSelect div, .stSlider, .stButton, .stTextInput, .stDateInput, .stDownloadButton {
+        color: #183153 !important;
+        background-color: #fff !important;
+    }
+    /* Sidebar color fix */
+    section[data-testid="stSidebar"] {
+        background-color: #f6f8fa !important;
+        color: #183153 !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# ----- HEADER / BRANDING -----
-# If you have a logo file, replace 'logo.png' with your path
-# st.image("logo.png", width=120)
+# --- HEADER / BRANDING ---
 st.title("GoFundMe Campaign Performance Dashboard")
 st.markdown("<h5 style='text-align: center; color: #555;'>by Nicolás Ton | July 2025</h5>", unsafe_allow_html=True)
 
@@ -46,7 +65,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ----- SIMULATED DATA -----
+# --- DATA SIMULATION ---
 today = datetime(2025, 7, 24)
 start_date = datetime(2025, 1, 1)
 days_range = (today - start_date).days
@@ -67,7 +86,7 @@ campaigns = pd.DataFrame({
 campaigns['raised_usd'] = campaigns['goal_usd'] * np.random.uniform(0.2, 1.3, n_campaigns)
 campaigns['status'] = np.where(campaigns['raised_usd'] >= campaigns['goal_usd'], 'Goal Reached', 'In Progress')
 
-# ----- SIDEBAR FILTERS -----
+# --- SIDEBAR FILTERS ---
 min_date = campaigns['created_at'].min().date()
 max_date = campaigns['created_at'].max().date()
 st.sidebar.title("Filters")
@@ -90,10 +109,10 @@ df = campaigns[
 
 st.sidebar.download_button("⬇️ Download Filtered Data", df.to_csv(index=False), "filtered_campaigns.csv", "text/csv")
 
-# ----- TABS LAYOUT -----
+# --- TABS LAYOUT ---
 tab1, tab2, tab3 = st.tabs(["📊 Campaigns", "🤝 Donors", "💼 Salaries"])
 
-# ----- TAB 1: CAMPAIGNS -----
+# --- TAB 1: CAMPAIGNS ---
 with tab1:
     st.subheader("Campaign KPIs")
     total_raised = df['raised_usd'].sum()
@@ -102,12 +121,23 @@ with tab1:
     avg_donation = df['raised_usd'].mean()
     reached_goal = (df['status'] == 'Goal Reached').sum()
 
-    k1, k2, k3, k4, k5 = st.columns(5)
-    k1.metric("💵 Total Raised", f"${total_raised:,.0f}")
-    k2.metric("🎯 Total Goal", f"${total_goal:,.0f}")
-    k3.metric("✅ Success Rate", f"{success_rate:.1f}%")
-    k4.metric("📈 Avg Raised/Campaign", f"${avg_donation:,.0f}")
-    k5.metric("🏆 Reached Goal", f"{reached_goal} / {len(df)}")
+    # Responsive: stack metrics on mobile
+    if st.columns(1)[0].width < 350:
+        for label, value in [
+            ("💵 Total Raised", f"${total_raised:,.0f}"),
+            ("🎯 Total Goal", f"${total_goal:,.0f}"),
+            ("✅ Success Rate", f"{success_rate:.1f}%"),
+            ("📈 Avg Raised/Campaign", f"${avg_donation:,.0f}"),
+            ("🏆 Reached Goal", f"{reached_goal} / {len(df)}"),
+        ]:
+            st.metric(label, value)
+    else:
+        k1, k2, k3, k4, k5 = st.columns(5)
+        k1.metric("💵 Total Raised", f"${total_raised:,.0f}")
+        k2.metric("🎯 Total Goal", f"${total_goal:,.0f}")
+        k3.metric("✅ Success Rate", f"{success_rate:.1f}%")
+        k4.metric("📈 Avg Raised/Campaign", f"${avg_donation:,.0f}")
+        k5.metric("🏆 Reached Goal", f"{reached_goal} / {len(df)}")
 
     st.markdown("---")
     st.subheader("Campaign Performance Visualizations")
@@ -174,7 +204,7 @@ with tab1:
         use_container_width=True
     )
 
-# ----- TAB 2: DONORS -----
+# --- TAB 2: DONORS ---
 with tab2:
     st.subheader("Donor Analytics")
     donors = pd.DataFrame({
@@ -206,7 +236,7 @@ with tab2:
         use_container_width=True
     )
 
-# ----- TAB 3: SALARIES -----
+# --- TAB 3: SALARIES ---
 with tab3:
     st.subheader("Employee Salary Overview")
     roles = ['Analyst', 'Engineer', 'Manager', 'Director']
