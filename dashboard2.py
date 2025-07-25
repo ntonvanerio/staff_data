@@ -15,7 +15,7 @@ st.markdown("""
         background-color: #f6f8fa !important;
         color: #183153 !important;
     }
-    /* Ensure text is always legible */
+    /* Global text color and always legible */
     body, div, p, span, h1, h2, h3, h4, h5, h6, label, th, td, .stText, .stMarkdown, .stMetric, .stButton, .stSidebar {
         color: #183153 !important;
         background-color: transparent;
@@ -121,23 +121,13 @@ with tab1:
     avg_donation = df['raised_usd'].mean()
     reached_goal = (df['status'] == 'Goal Reached').sum()
 
-    # Responsive: stack metrics on mobile
-    if st.columns(1)[0].width < 350:
-        for label, value in [
-            ("💵 Total Raised", f"${total_raised:,.0f}"),
-            ("🎯 Total Goal", f"${total_goal:,.0f}"),
-            ("✅ Success Rate", f"{success_rate:.1f}%"),
-            ("📈 Avg Raised/Campaign", f"${avg_donation:,.0f}"),
-            ("🏆 Reached Goal", f"{reached_goal} / {len(df)}"),
-        ]:
-            st.metric(label, value)
-    else:
-        k1, k2, k3, k4, k5 = st.columns(5)
-        k1.metric("💵 Total Raised", f"${total_raised:,.0f}")
-        k2.metric("🎯 Total Goal", f"${total_goal:,.0f}")
-        k3.metric("✅ Success Rate", f"{success_rate:.1f}%")
-        k4.metric("📈 Avg Raised/Campaign", f"${avg_donation:,.0f}")
-        k5.metric("🏆 Reached Goal", f"{reached_goal} / {len(df)}")
+    # Always use columns for metrics; CSS will handle stacking on mobile.
+    k1, k2, k3, k4, k5 = st.columns(5)
+    k1.metric("💵 Total Raised", f"${total_raised:,.0f}")
+    k2.metric("🎯 Total Goal", f"${total_goal:,.0f}")
+    k3.metric("✅ Success Rate", f"{success_rate:.1f}%")
+    k4.metric("📈 Avg Raised/Campaign", f"${avg_donation:,.0f}")
+    k5.metric("🏆 Reached Goal", f"{reached_goal} / {len(df)}")
 
     st.markdown("---")
     st.subheader("Campaign Performance Visualizations")
