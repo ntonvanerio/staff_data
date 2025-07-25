@@ -108,6 +108,7 @@ k1.metric("Total Raised", f"${total_raised:,.0f}")
 k2.metric("Total Goal", f"${total_goal:,.0f}")
 k3.metric("Success Rate", f"{success_rate:.1f}%")
 k4.metric("Avg Raised per Campaign", f"${avg_donation:,.0f}")
+k5.metric("Campaigns Reached Goal", f"{(df['status'] == 'Goal Reached').sum()} / {len(df)}")
 st.markdown("""
 </div>
 """, unsafe_allow_html=True)
