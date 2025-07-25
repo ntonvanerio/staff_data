@@ -17,7 +17,7 @@ from datetime import datetime
 # Page setup
 st.set_page_config(page_title="GoFundMe Dashboard", layout="wide")
 
-# Custom CSS: full grey background and card styling
+# Custom CSS
 st.markdown("""
     <style>
     html, body, .main, .block-container {
@@ -34,12 +34,12 @@ st.markdown("""
     .stSlider {
         padding-top: 10px;
     }
-    .card {
-        background-color: #ffffffcc;
-        padding: 1.5rem;
-        border-radius: 12px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        margin-bottom: 1.5rem;
+    .highlight-box {
+        background-color: #f2f2f2;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        box-shadow: 0px 0px 10px rgba(0,0,0,0.05);
     }
     </style>
 """, unsafe_allow_html=True)
@@ -84,14 +84,109 @@ df = campaigns[
 ]
 
 # Header
+st.title("GoFundMe Campaign Performance Dashboard")
 st.markdown("""
-<div class="card">
-<h1>GoFundMe Campaign Performance Dashboard</h1>
-<p style="text-align: center">Explore performance from Jan to Jul 2025. Use filters on the left.</p>
+<div class='highlight-box'>
+Explore performance from Jan to Jul 2025. Use filters on the left.
 </div>
 """, unsafe_allow_html=True)
 
 # CSV Export
 st.download_button("Download Filtered Data", df.to_csv(index=False), "filtered_campaigns.csv", "text/csv")
+
+# KPIs
+total_raised = df['raised_usd'].sum()
+total_goal = df['goal_usd'].sum()
+success_rate = (df['status'] == 'Goal Reached').mean() * 100
+avg_donation = df['raised_usd'].mean()
+
+st.markdown("""
+<div class='highlight-box'>
+""", unsafe_allow_html=True)
+k1, k2, k3, k4 = st.columns(4)
+k1.metric("Total Raised", f"${total_raised:,.0f}")
+k2.metric("Total Goal", f"${total_goal:,.0f}")
+k3.metric("Success Rate", f"{success_rate:.1f}%")
+k4.metric("Avg Raised per Campaign", f"${avg_donation:,.0f}")
+st.markdown("""
+</div>
+""", unsafe_allow_html=True)
+st.caption(f"{success_rate:.1f}% of campaigns reached their goal.")
+
+# Donor simulation
+donors = pd.DataFrame({
+    'donor_id': range(1, len(df)//2 + 1),
+    'donations': np.random.poisson(2, len(df)//2),
+    'channel': np.random.choice(['Email', 'Social', 'Referral', 'Direct'], len(df)//2),
+    'total_donated': np.random.uniform(10, 500, len(df)//2)
+})
+num_donors = len(donors)
+new_donors = (donors['donations'] == 1).sum()
+retention = (donors['donations'] > 1).mean() * 100
+avg_donor_val = donors['total_donated'].mean()
+
+st.markdown("""
+<div class='highlight-box'>
+""", unsafe_allow_html=True)
+d1, d2, d3, d4 = st.columns(4)
+d1.metric("Donors", f"{num_donors}")
+d2.metric("New Donors (%)", f"{new_donors/num_donors*100:.1f}%")
+d3.metric("Retention Rate", f"{retention:.1f}%")
+d4.metric("Avg Donor Value", f"${avg_donor_val:.0f}")
+st.markdown("""
+</div>
+""", unsafe_allow_html=True)
+
+# 2-column layout for charts
+c1, c2 = st.columns(2)
+cat_chart = df.groupby('category')['raised_usd'].sum().reset_index()
+c1.plotly_chart(px.bar(cat_chart, x='category', y='raised_usd',
+    title="Raised by Category", color='category',
+    color_discrete_sequence=px.colors.sequential.Emrld, template='plotly_white'), use_container_width=True)
+channel_sum = donors.groupby('channel')['total_donated'].sum().reset_index()
+c2.plotly_chart(px.pie(channel_sum, names='channel', values='total_donated',
+    title='Donations by Channel', template='plotly_white'), use_container_width=True)
+
+# Timeline & Country map
+t1, t2 = st.columns(2)
+df['month'] = df['created_at'].dt.to_period('M').dt.to_timestamp()
+timeline = df.groupby('month')['raised_usd'].sum().reset_index()
+t1.plotly_chart(px.line(timeline, x='month', y='raised_usd',
+    markers=True, title="Monthly Raised Amount", template='plotly_white'), use_container_width=True)
+geo = df.groupby('country')['raised_usd'].sum().reset_index()
+geo['iso'] = geo['country'].map({'Argentina': 'ARG', 'USA': 'USA', 'Brazil': 'BRA', 'Mexico': 'MEX', 'Spain': 'ESP'})
+t2.plotly_chart(px.choropleth(geo, locations='iso', color='raised_usd',
+    hover_name='country', title='Raised by Country',
+    color_continuous_scale='greens', template='plotly_white'), use_container_width=True)
+
+# Top campaigns
+top = df.sort_values('raised_usd', ascending=False).head(10)
+st.markdown("Top Performing Campaigns")
+c3, c4 = st.columns(2)
+c3.dataframe(top[['name', 'category', 'country', 'goal_usd', 'raised_usd', 'status']])
+c4.plotly_chart(px.bar(top, x='name', y='raised_usd', color='category',
+    title='Top Campaigns by Raised USD', template='plotly_white'), use_container_width=True)
+
+# Salary data simulation
+st.markdown("Employee Salary Overview")
+roles = ['Analyst', 'Engineer', 'Manager', 'Director']
+sectors = ['Product', 'Data', 'Marketing', 'Operations']
+genders = ['Male', 'Female', 'Non-binary']
+ages = np.random.randint(22, 60, 200)
+salary_data = pd.DataFrame({
+    'role': np.random.choice(roles, 200),
+    'sector': np.random.choice(sectors, 200),
+    'country': np.random.choice(countries, 200),
+    'gender': np.random.choice(genders, 200),
+    'age': ages,
+    'salary_usd': np.random.normal(50000, 15000, 200).round(0)
+})
+s1, s2 = st.columns(2)
+s1.plotly_chart(px.box(salary_data, x='role', y='salary_usd', title="Salary by Role", template='plotly_white'), use_container_width=True)
+s2.plotly_chart(px.box(salary_data, x='country', y='salary_usd', title="Salary by Country", template='plotly_white'), use_container_width=True)
+s3, s4 = st.columns(2)
+s3.plotly_chart(px.box(salary_data, x='sector', y='salary_usd', title="Salary by Sector", template='plotly_white'), use_container_width=True)
+s4.plotly_chart(px.box(salary_data, x='gender', y='salary_usd', title="Salary by Gender", template='plotly_white'), use_container_width=True)
+
 
 
