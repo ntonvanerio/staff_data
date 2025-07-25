@@ -103,7 +103,7 @@ avg_donation = df['raised_usd'].mean()
 st.markdown("""
 <div class='highlight-box'>
 """, unsafe_allow_html=True)
-k1, k2, k3, k4 = st.columns(4)
+k1, k2, k3, k4, k5 = st.columns(5)
 k1.metric("Total Raised", f"${total_raised:,.0f}")
 k2.metric("Total Goal", f"${total_goal:,.0f}")
 k3.metric("Success Rate", f"{success_rate:.1f}%")
@@ -112,7 +112,7 @@ k5.metric("Campaigns Reached Goal", f"{(df['status'] == 'Goal Reached').sum()} /
 st.markdown("""
 </div>
 """, unsafe_allow_html=True)
-st.caption(f"{success_rate:.1f}% of campaigns reached their goal.")
+
 
 # Donor simulation
 donors = pd.DataFrame({
